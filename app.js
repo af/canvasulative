@@ -2,7 +2,9 @@
 // * <canvas>
 // * Function.prototype.bind (ES5)
 
-function Game() {
+function Game(width, height) {
+    this.width = width;
+    this.height = height;
     this.timeLeft = 60;
     this.score = 0;
     this.topScore = 0; //TODO: fetch from localstorage
@@ -16,6 +18,9 @@ Game.prototype.update = function(inputCommands) {
     // pass input to ship for update
     // check for collisions
 
+    for (i in this.enemies) {
+        this.enemies[i].update();
+    }
     if (this.showIntroOverlay) {
         if (inputCommands.startGame) {
             this.start();
@@ -31,23 +36,33 @@ Game.prototype.update = function(inputCommands) {
 }
 Game.prototype._endGame = function() {
     this.showIntroOverlay = true;
-    this.timeLeft = 0.01;
+    this.timeLeft = +0;
 }
 Game.prototype.start = function() {
     this.showIntroOverlay = false;
     this.timeLeft = 60;
     this.score = 0;
+    this.boundaries = { minX: 0, maxX: this.width,
+                        minY: 0, maxY: this.height };
     this.gameStartTime = (new Date()).getTime();
-    // TODO: init enemies here
-    this.enemies = [new Enemy(100,100), ];
+    this.enemies = [];
+    this.spawnEnemy({x: 100, y: 100}, {x: 1, y: 0.5});  // TODO: location & unit vector based on ship position
+}
+Game.prototype.spawnEnemy = function(spawnLocation, direction) {
+    var enemy = new Enemy(spawnLocation, direction, this.boundaries);
+    this.enemies.push(enemy);
 }
 
 
 
-function Enemy(x, y) {
-    this.x = x;
-    this.y = y;
+function Enemy(spawnLocation, direction, boundaries) {
+    this.x = spawnLocation.x;
+    this.y = spawnLocation.y;
+    this.direction = direction;                 // A unit vector object specifying the direction of movement;
+    this.boundaries = boundaries;               // an object with minX, maxX, minY, and maxY properties
     this.spawnedAt = (new Date()).getTime();    // spawn timestamp in milliseconds
+    this.xBoundaries = undefined;
+    this.yBoundaries = undefined;
 }
 
 // Return the time since the enemy was spawned, in milliseconds:
@@ -55,17 +70,44 @@ Enemy.prototype.getAge = function() {
     return (new Date()).getTime() - this.spawnedAt;
 }
 
-// Fade out the enemy's colour as it ages:
-Enemy.prototype.getColourString = function() {
-    var maxOpacity = 1, minOpacity = 0.4;
-    var opacity = Math.max(minOpacity, maxOpacity - this.getAge()/5000);
-    return 'rgba(255,0,0,' + opacity.toFixed(2) + ')';
-}
-
 // Shrink the enemy's size as it ages:
 Enemy.prototype.getRadius = function() {
     var maxRadius = 30, minRadius = 10;
     return Math.max(minRadius, maxRadius - this.getAge()/500);
+}
+
+// Slow the enemy down as it ages:
+Enemy.prototype.getSpeed = function() {
+    var initialSpeed = 5, minSpeed = 1;
+    return Math.max(initialSpeed - this.getAge()/3000, minSpeed);
+}
+
+Enemy.prototype.update = function() {
+    var radius = this.getRadius();
+
+    // Update X position, enforcing boundary conditions:
+    var newX = this.x + this.direction.x*this.getSpeed();
+    if (newX - radius < this.boundaries.minX) {
+        newX = this.boundaries.minX + radius;
+        this.direction.x = -this.direction.x;
+    }
+    else if (newX + radius > this.boundaries.maxX) {
+        newX = this.boundaries.maxX - radius;
+        this.direction.x = -this.direction.x;
+    }
+    this.x = newX;
+
+    // Update Y position, enforcing boundary conditions:
+    var newY = this.y + this.direction.y*this.getSpeed();
+    if (newY - radius < this.boundaries.minY) {
+        newY = this.boundaries.minY + radius;
+        this.direction.y = -this.direction.y;
+    }
+    else if (newY + radius > this.boundaries.maxY) {
+        newY = this.boundaries.maxY - radius;
+        this.direction.y = -this.direction.y;
+    }
+    this.y = newY;
 }
 
 
@@ -122,16 +164,22 @@ GameView.prototype.drawStats = function() {
     this.context.fillText('Pts/s: ' + this.game.pointsPerSecond, width - textPadding, height - textPadding);
 }
 
+GameView.prototype.getEnemyColour = function(age) {
+    var maxOpacity = 1, minOpacity = 0.4;
+    var opacity = Math.max(minOpacity, maxOpacity - age/5000);
+    return 'rgba(255,0,0,' + opacity.toFixed(2) + ')';
+}
+
 // Draw each enemy on the canvas
 GameView.prototype.drawEnemies = function(enemies) {
     this.context.save();
-    this.context.lineWidth = 4;
+    this.context.lineWidth = 5;
     this.context.lineCap = 'round';
     for (var i = 0; i < enemies.length; i++) {
         var enemy = enemies[i];
         var radius = enemy.getRadius();
         var rotationAngle = enemy.getAge()/500;
-        this.context.strokeStyle = enemy.getColourString();
+        this.context.strokeStyle = this.getEnemyColour(enemy.getAge());
         this.context.beginPath();
         this.context.arc(enemy.x, enemy.y, radius,
                          Math.PI/8 + rotationAngle, 7*Math.PI/8 + rotationAngle, false);
@@ -211,7 +259,7 @@ InputController.prototype.callUpdate = function() {
 
 window.onload = function() {
     var canvas = document.getElementById('game');
-    var game = new Game();
+    var game = new Game(canvas.width, canvas.height);
     var view = new GameView(game, canvas);
     var controller = new InputController(game);
 }
