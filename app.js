@@ -39,12 +39,35 @@ Game.prototype.start = function() {
     this.score = 0;
     this.gameStartTime = (new Date()).getTime();
     // TODO: init enemies here
+    this.enemies = [new Enemy(100,100), ];
 }
 
 
-function Enemy() {
-    this.spawnedAt = (new Date()).getTime();    // spawn time in milliseconds
+
+function Enemy(x, y) {
+    this.x = x;
+    this.y = y;
+    this.spawnedAt = (new Date()).getTime();    // spawn timestamp in milliseconds
 }
+
+// Return the time since the enemy was spawned, in milliseconds:
+Enemy.prototype.getAge = function() {
+    return (new Date()).getTime() - this.spawnedAt;
+}
+
+// Fade out the enemy's colour as it ages:
+Enemy.prototype.getColourString = function() {
+    var maxOpacity = 1, minOpacity = 0.4;
+    var opacity = Math.max(minOpacity, maxOpacity - this.getAge()/5000);
+    return 'rgba(255,0,0,' + opacity.toFixed(2) + ')';
+}
+
+// Shrink the enemy's size as it ages:
+Enemy.prototype.getRadius = function() {
+    var maxRadius = 30, minRadius = 10;
+    return Math.max(minRadius, maxRadius - this.getAge()/500);
+}
+
 
 
 function GameView(game, canvas) {
@@ -62,8 +85,10 @@ GameView.prototype.setDefaults = function() {
 }
 
 GameView.prototype.render = function() {
+    // TODO: only render if the game state has changed since last render
     this.context.clearRect(0,0,400,400);    // Reset the canvas
     this.drawStats();
+    this.drawEnemies(this.game.enemies);
     this.game.showIntroOverlay ? this.drawIntroOverlay() : null;
     this._getNextFrame();
 }
@@ -95,6 +120,28 @@ GameView.prototype.drawStats = function() {
     this.context.fillText('Score: ' + this.game.score, width - textPadding, 20);
     this.context.fillText('Top: ' + this.game.topScore, width - textPadding, 40);
     this.context.fillText('Pts/s: ' + this.game.pointsPerSecond, width - textPadding, height - textPadding);
+}
+
+// Draw each enemy on the canvas
+GameView.prototype.drawEnemies = function(enemies) {
+    this.context.save();
+    this.context.lineWidth = 4;
+    this.context.lineCap = 'round';
+    for (var i = 0; i < enemies.length; i++) {
+        var enemy = enemies[i];
+        var radius = enemy.getRadius();
+        var rotationAngle = enemy.getAge()/500;
+        this.context.strokeStyle = enemy.getColourString();
+        this.context.beginPath();
+        this.context.arc(enemy.x, enemy.y, radius,
+                         Math.PI/8 + rotationAngle, 7*Math.PI/8 + rotationAngle, false);
+        this.context.stroke();
+        this.context.beginPath();
+        this.context.arc(enemy.x, enemy.y, radius,
+                         9*Math.PI/8 + rotationAngle, 15*Math.PI/8 + rotationAngle, false);
+        this.context.stroke();
+    }
+    this.context.restore();
 }
 
 // Use requestAnimationFrame (if available) to trigger the next rendering
