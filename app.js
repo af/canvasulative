@@ -8,12 +8,37 @@ function Game() {
     this.topScore = 0; //TODO: fetch from localstorage
     this.pointsPerSecond = 0;
     this.showIntroOverlay = true;
+    this.gameStartTime = null;      // Game start time, in milliseconds
     this.enemies = [];
 }
-Game.prototype.tick = function() {
+Game.prototype.update = function(inputCommands) {
     // update enemies
     // pass input to ship for update
     // check for collisions
+
+    if (this.showIntroOverlay) {
+        if (inputCommands.startGame) {
+            this.start();
+        }
+    }
+    else {
+        var elapsedTimeInMs = (new Date()).getTime() - this.gameStartTime;
+        this.timeLeft = 60 - elapsedTimeInMs/1000;
+        if (this.timeLeft <= 0) {
+            this._endGame();
+        }
+    }
+}
+Game.prototype._endGame = function() {
+    this.showIntroOverlay = true;
+    this.timeLeft = 0.01;
+}
+Game.prototype.start = function() {
+    this.showIntroOverlay = false;
+    this.timeLeft = 60;
+    this.score = 0;
+    this.gameStartTime = (new Date()).getTime();
+    // TODO: init enemies here
 }
 
 
@@ -94,8 +119,52 @@ GameView.prototype._getNextFrame = function() {
 }
 
 
+
+function InputController(game) {
+    this.game = game;       // Game model object
+    this._commands = {};    // Queued commands to be sent to the model
+
+    // Map javascript key codes to game commands that can be sent to the model:
+    this.keyMap = {
+        32: 'startGame',    // space
+        37: 'shipLeft',     // left arrow
+        38: 'shipUp',       // up arrow
+        39: 'shipRight',    // right arrow
+        40: 'shipDown'      // down arrow
+    }
+    this.bindKeyboardListeners();
+    this.startUpdateLoop();
+}
+InputController.prototype.bindKeyboardListeners = function() {
+    that = this;
+    window.addEventListener('keydown', function(e) {
+        if (e.keyCode in that.keyMap) {
+            var commandName = that.keyMap[e.keyCode];
+            that._commands[commandName] = true;
+        }
+    });
+    window.addEventListener('keyup', function(e) {
+        if (e.keyCode in that.keyMap) {
+            var commandName = that.keyMap[e.keyCode];
+            delete that._commands[commandName];
+        }
+    });
+}
+InputController.prototype.startUpdateLoop = function() {
+    var ticksPerSecond = 50;
+    var updateFn = this.callUpdate.bind(this);
+    setInterval(updateFn, 1000/ticksPerSecond);
+}
+InputController.prototype.callUpdate = function() {
+    var commands = {};
+    this.game.update(this._commands);
+}
+
+
+
 window.onload = function() {
     var canvas = document.getElementById('game');
     var game = new Game();
     var view = new GameView(game, canvas);
+    var controller = new InputController(game);
 }
