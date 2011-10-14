@@ -14,19 +14,16 @@ function Game(width, height) {
     this.enemies = [];
 }
 Game.prototype.update = function(inputCommands) {
-    // update enemies
-    // pass input to ship for update
-    // check for collisions
+    // TODO: check for collisions
 
     for (i in this.enemies) {
         this.enemies[i].update();
     }
     if (this.showIntroOverlay) {
-        if (inputCommands.startGame) {
-            this.start();
-        }
+        if (inputCommands.startGame) { this.start(); }
     }
     else {
+        this.ship && this.ship.update(inputCommands);
         var elapsedTimeInMs = (new Date()).getTime() - this.gameStartTime;
         this.timeLeft = 60 - elapsedTimeInMs/1000;
         if (this.timeLeft <= 0) {
@@ -37,6 +34,7 @@ Game.prototype.update = function(inputCommands) {
 Game.prototype._endGame = function() {
     this.showIntroOverlay = true;
     this.timeLeft = +0;
+    this.ship = null;
 }
 Game.prototype.start = function() {
     this.showIntroOverlay = false;
@@ -45,6 +43,7 @@ Game.prototype.start = function() {
     this.boundaries = { minX: 0, maxX: this.width,
                         minY: 0, maxY: this.height };
     this.gameStartTime = (new Date()).getTime();
+    this.ship = new Ship({x: 200, y: 200});
     this.enemies = [];
     this.spawnEnemy({x: 100, y: 100}, {x: 1, y: 0.5});  // TODO: location & unit vector based on ship position
 }
@@ -53,6 +52,39 @@ Game.prototype.spawnEnemy = function(spawnLocation, direction) {
     this.enemies.push(enemy);
 }
 
+
+
+function Ship(startLocation) {
+    this.width = this.height = 15;      // Dimensions of ship in pixels
+    this.x = startLocation.x;           // Location of ship's center
+    this.y = startLocation.y;
+    this.velocity = { x: 0, y: 0};
+}
+
+// Move the ship in response to the user's input commands.
+// Handles the following commands: moveLeft, moveRight, moveUp, moveDown
+Ship.prototype.update = function(commands) {
+    var MAX_SPEED = 4;
+    var ACCELERATION = 1;   // Amount of speed to add when given a movement command
+    var FRICTION = 1.5;     // Factor of velocity slowdown when no input is provided
+
+    // Check for movement commands and use them to calculate acceleration values:
+    var accelX = (commands['moveLeft'] ? -ACCELERATION : 0) || (commands['moveRight'] ? +ACCELERATION : 0);
+    var accelY = (commands['moveUp'] ? -ACCELERATION : 0) || (commands['moveDown'] ? +ACCELERATION : 0);
+    accelX ? (this.velocity.x += accelX) : (this.velocity.x /= FRICTION);
+    accelY ? (this.velocity.y += accelY) : (this.velocity.y /= FRICTION);
+
+    // Ensure our speed does not exceed MAX_SPEED:
+    var speed = Math.sqrt(this.velocity.x*this.velocity.x + this.velocity.y*this.velocity.y);
+    if (speed > MAX_SPEED) {
+        // I believe this slowdown code is an incorrect simplification, but it seems to work:
+        var scaleFactor = MAX_SPEED/speed;
+        this.velocity.x *= scaleFactor;
+        this.velocity.y *= scaleFactor;
+    }
+    this.x += this.velocity.x;
+    this.y += this.velocity.y;
+}
 
 
 function Enemy(spawnLocation, direction, boundaries) {
@@ -129,8 +161,9 @@ GameView.prototype.setDefaults = function() {
 GameView.prototype.render = function() {
     // TODO: only render if the game state has changed since last render
     this.context.clearRect(0,0,400,400);    // Reset the canvas
-    this.drawStats();
     this.drawEnemies(this.game.enemies);
+    this.game.ship && this.drawShip(this.game.ship);
+    this.drawStats();
     this.game.showIntroOverlay ? this.drawIntroOverlay() : null;
     this._getNextFrame();
 }
@@ -168,6 +201,12 @@ GameView.prototype.getEnemyColour = function(age) {
     var maxOpacity = 1, minOpacity = 0.4;
     var opacity = Math.max(minOpacity, maxOpacity - age/5000);
     return 'rgba(255,0,0,' + opacity.toFixed(2) + ')';
+}
+
+GameView.prototype.drawShip = function(ship) {
+    this.context.strokeStyle = 'white';
+    this.context.lineWidth = 3;
+    this.context.strokeRect(ship.x - ship.width/2, ship.y - ship.height/2, ship.width, ship.height);
 }
 
 // Draw each enemy on the canvas
@@ -222,10 +261,10 @@ function InputController(game) {
     // Map javascript key codes to game commands that can be sent to the model:
     this.keyMap = {
         32: 'startGame',    // space
-        37: 'shipLeft',     // left arrow
-        38: 'shipUp',       // up arrow
-        39: 'shipRight',    // right arrow
-        40: 'shipDown'      // down arrow
+        37: 'moveLeft',     // left arrow
+        38: 'moveUp',       // up arrow
+        39: 'moveRight',    // right arrow
+        40: 'moveDown'      // down arrow
     }
     this.bindKeyboardListeners();
     this.startUpdateLoop();
