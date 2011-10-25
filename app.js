@@ -16,7 +16,7 @@ function Game(width, height) {
 Game.prototype.update = function(inputCommands) {
     // TODO: check for collisions
 
-    for (i in this.enemies) {
+    for (var i in this.enemies) {
         this.enemies[i].update();
     }
     if (this.showIntroOverlay) {
@@ -30,12 +30,12 @@ Game.prototype.update = function(inputCommands) {
             this._endGame();
         }
     }
-}
+};
 Game.prototype._endGame = function() {
     this.showIntroOverlay = true;
     this.timeLeft = +0;
     this.ship = null;
-}
+};
 Game.prototype.start = function() {
     this.showIntroOverlay = false;
     this.timeLeft = 60;
@@ -46,11 +46,11 @@ Game.prototype.start = function() {
     this.ship = new Ship({x: 200, y: 200});
     this.enemies = [];
     this.spawnEnemy({x: 100, y: 100}, {x: 1, y: 0.5});  // TODO: location & unit vector based on ship position
-}
+};
 Game.prototype.spawnEnemy = function(spawnLocation, direction) {
     var enemy = new Enemy(spawnLocation, direction, this.boundaries);
     this.enemies.push(enemy);
-}
+};
 
 
 
@@ -84,7 +84,7 @@ Ship.prototype.update = function(commands) {
     }
     this.x += this.velocity.x;
     this.y += this.velocity.y;
-}
+};
 
 
 function Enemy(spawnLocation, direction, boundaries) {
@@ -100,19 +100,19 @@ function Enemy(spawnLocation, direction, boundaries) {
 // Return the time since the enemy was spawned, in milliseconds:
 Enemy.prototype.getAge = function() {
     return (new Date()).getTime() - this.spawnedAt;
-}
+};
 
 // Shrink the enemy's size as it ages:
 Enemy.prototype.getRadius = function() {
     var maxRadius = 30, minRadius = 10;
     return Math.max(minRadius, maxRadius - this.getAge()/500);
-}
+};
 
 // Slow the enemy down as it ages:
 Enemy.prototype.getSpeed = function() {
     var initialSpeed = 5, minSpeed = 1;
     return Math.max(initialSpeed - this.getAge()/3000, minSpeed);
-}
+};
 
 Enemy.prototype.update = function() {
     var radius = this.getRadius();
@@ -140,7 +140,7 @@ Enemy.prototype.update = function() {
         this.direction.y = -this.direction.y;
     }
     this.y = newY;
-}
+};
 
 
 
@@ -156,17 +156,16 @@ GameView.prototype.setDefaults = function() {
     this.context.fillStyle = 'white';
     this.context.strokeStyle = 'white';
     this.context.font = '1em Orbitron,monospace';
-}
+};
 
 GameView.prototype.render = function() {
-    // TODO: only render if the game state has changed since last render
     this.context.clearRect(0,0,400,400);    // Reset the canvas
     this.drawEnemies(this.game.enemies);
     this.game.ship && this.drawShip(this.game.ship);
     this.drawStats();
     this.game.showIntroOverlay ? this.drawIntroOverlay() : null;
     this._getNextFrame();
-}
+};
 
 // Draw an overlay on the canvas, with the game name, controls, etc.
 GameView.prototype.drawIntroOverlay = function() {
@@ -183,7 +182,7 @@ GameView.prototype.drawIntroOverlay = function() {
     this.context.fillText('This is a clone of Cumulative, by Guy Lima', this.canvas.width/2, this.canvas.height - 85);
     this.context.fillText('http://www.guylima.com/cumulative/', this.canvas.width/2, this.canvas.height - 70);
     this.context.restore();
-}
+};
 
 GameView.prototype.drawStats = function() {
     var width = this.canvas.width;
@@ -195,19 +194,19 @@ GameView.prototype.drawStats = function() {
     this.context.fillText('Score: ' + this.game.score, width - textPadding, 20);
     this.context.fillText('Top: ' + this.game.topScore, width - textPadding, 40);
     this.context.fillText('Pts/s: ' + this.game.pointsPerSecond, width - textPadding, height - textPadding);
-}
+};
 
 GameView.prototype.getEnemyColour = function(age) {
     var maxOpacity = 1, minOpacity = 0.4;
     var opacity = Math.max(minOpacity, maxOpacity - age/5000);
     return 'rgba(255,0,0,' + opacity.toFixed(2) + ')';
-}
+};
 
 GameView.prototype.drawShip = function(ship) {
     this.context.strokeStyle = 'white';
     this.context.lineWidth = 3;
     this.context.strokeRect(ship.x - ship.width/2, ship.y - ship.height/2, ship.width, ship.height);
-}
+};
 
 // Draw each enemy on the canvas
 GameView.prototype.drawEnemies = function(enemies) {
@@ -229,7 +228,7 @@ GameView.prototype.drawEnemies = function(enemies) {
         this.context.stroke();
     }
     this.context.restore();
-}
+};
 
 // Use requestAnimationFrame (if available) to trigger the next rendering
 // of the GameView.
@@ -244,13 +243,13 @@ GameView.prototype._getNextFrame = function() {
                function(callback, element){
                    window.setTimeout(callback, 1000 / 60);
                };
-    })();
+    }());
 
     // Call this.render (with the appropriate "this" value) for each frame.
     // We also need to bind our requestAnimFrame to window, or it won't run
     // properly.
     this.requestAnimFrame.bind(window)(this.render_func, this.canvas);
-}
+};
 
 
 
@@ -265,12 +264,12 @@ function InputController(game) {
         38: 'moveUp',       // up arrow
         39: 'moveRight',    // right arrow
         40: 'moveDown'      // down arrow
-    }
+    };
     this.bindKeyboardListeners();
     this.startUpdateLoop();
 }
 InputController.prototype.bindKeyboardListeners = function() {
-    that = this;
+    var that = this;
     window.addEventListener('keydown', function(e) {
         if (e.keyCode in that.keyMap) {
             var commandName = that.keyMap[e.keyCode];
@@ -283,16 +282,16 @@ InputController.prototype.bindKeyboardListeners = function() {
             delete that._commands[commandName];
         }
     });
-}
+};
 InputController.prototype.startUpdateLoop = function() {
     var ticksPerSecond = 50;
     var updateFn = this.callUpdate.bind(this);
     setInterval(updateFn, 1000/ticksPerSecond);
-}
+};
 InputController.prototype.callUpdate = function() {
     var commands = {};
     this.game.update(this._commands);
-}
+};
 
 
 
@@ -301,4 +300,4 @@ window.onload = function() {
     var game = new Game(canvas.width, canvas.height);
     var view = new GameView(game, canvas);
     var controller = new InputController(game);
-}
+};
