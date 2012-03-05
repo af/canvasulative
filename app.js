@@ -14,8 +14,6 @@ function Game(width, height) {
     this.enemies = [];
 }
 Game.prototype.update = function(inputCommands) {
-    // TODO: check for collisions
-
     for (var i in this.enemies) {
         this.enemies[i].update();
     }
@@ -23,6 +21,7 @@ Game.prototype.update = function(inputCommands) {
         if (inputCommands.startGame) { this.start(); }
     }
     else {
+        this.checkForCollisions(this.ship, this.enemies);
         this.ship && this.ship.update(inputCommands);
         var elapsedTimeInMs = (new Date()).getTime() - this.gameStartTime;
         this.timeLeft = 60 - elapsedTimeInMs/1000;
@@ -46,11 +45,21 @@ Game.prototype.start = function() {
     this.ship = new Ship({x: 200, y: 200});
     this.enemies = [];
     this.spawnEnemy({x: 100, y: 100}, {x: 1, y: 0.5});  // TODO: location & unit vector based on ship position
+    this.spawnEnemy({x: 300, y: 300}, {x: 1, y: 0.5});  // TODO: location & unit vector based on ship position
 };
 Game.prototype.spawnEnemy = function(spawnLocation, direction) {
     var enemy = new Enemy(spawnLocation, direction, this.boundaries);
     this.enemies.push(enemy);
 };
+Game.prototype.checkForCollisions = function(ship, enemies) {
+    // Report a collision if any enemy overlaps the ship
+    // We are approximating the ship as a circle for ease of calculation
+    var collision = enemies.some(function(e) {
+        var distanceSquared = Math.pow(e.x - ship.x, 2) + Math.pow(e.y - ship.y, 2);
+        return (distanceSquared < Math.pow(ship.radius + e.getRadius(), 2));
+    });
+    collision && this._endGame();
+}
 
 
 
@@ -59,6 +68,7 @@ function Ship(startLocation) {
     this.x = startLocation.x;           // Location of ship's center
     this.y = startLocation.y;
     this.velocity = { x: 0, y: 0};
+    this.radius = 18;                   // Approximate, used for collision detection
 }
 
 // Move the ship in response to the user's input commands.
@@ -110,7 +120,7 @@ Enemy.prototype.getRadius = function() {
 
 // Slow the enemy down as it ages:
 Enemy.prototype.getSpeed = function() {
-    var initialSpeed = 5, minSpeed = 1;
+    var initialSpeed = 3, minSpeed = 1;
     return Math.max(initialSpeed - this.getAge()/3000, minSpeed);
 };
 
