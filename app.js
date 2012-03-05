@@ -12,6 +12,8 @@ function Game(width, height) {
     this.showIntroOverlay = true;
     this.gameStartTime = null;      // Game start time, in milliseconds
     this.enemies = [];
+    this.boundaries = { minX: 0, maxX: this.width,
+                        minY: 0, maxY: this.height };
 }
 Game.prototype.update = function(inputCommands) {
     for (var i in this.enemies) {
@@ -22,7 +24,7 @@ Game.prototype.update = function(inputCommands) {
     }
     else {
         this.checkForCollisions(this.ship, this.enemies);
-        this.ship && this.ship.update(inputCommands);
+        this.ship && this.ship.update(inputCommands, this.boundaries);
         var elapsedTimeInMs = (new Date()).getTime() - this.gameStartTime;
         this.timeLeft = 60 - elapsedTimeInMs/1000;
         if (this.timeLeft <= 0) {
@@ -39,12 +41,10 @@ Game.prototype.start = function() {
     this.showIntroOverlay = false;
     this.timeLeft = 60;
     this.score = 0;
-    this.boundaries = { minX: 0, maxX: this.width,
-                        minY: 0, maxY: this.height };
     this.gameStartTime = (new Date()).getTime();
     this.ship = new Ship({x: 200, y: 200});
     this.enemies = [];
-    this.spawnEnemy({x: 100, y: 100}, {x: 1, y: 0.5});  // TODO: location & unit vector based on ship position
+    this.spawnEnemy({x: 100, y: 100}, {x: 1, y: 0.1});  // TODO: location & unit vector based on ship position
     this.spawnEnemy({x: 300, y: 300}, {x: 1, y: 0.5});  // TODO: location & unit vector based on ship position
 };
 Game.prototype.spawnEnemy = function(spawnLocation, direction) {
@@ -73,8 +73,9 @@ function Ship(startLocation) {
 
 // Move the ship in response to the user's input commands.
 // Handles the following commands: moveLeft, moveRight, moveUp, moveDown
-Ship.prototype.update = function(commands) {
-    var MAX_SPEED = 4;
+// contraints should be an object with minX, maxX, minY, and maxY properties
+Ship.prototype.update = function(commands, constraints) {
+    var MAX_SPEED = 3.5;
     var ACCELERATION = 1;   // Amount of speed to add when given a movement command
     var FRICTION = 1.5;     // Factor of velocity slowdown when no input is provided
 
@@ -92,8 +93,11 @@ Ship.prototype.update = function(commands) {
         this.velocity.x *= scaleFactor;
         this.velocity.y *= scaleFactor;
     }
-    this.x += this.velocity.x;
-    this.y += this.velocity.y;
+    // Enforce boundary conditions before moving the ship:
+    var nextX = this.x + this.velocity.x;
+    var nextY = this.y + this.velocity.y;
+    if (nextX > constraints.minX + this.width/2 && nextX < constraints.maxX - this.width/2) { this.x = nextX; }
+    if (nextY > constraints.minY + this.height/2 && nextY < constraints.maxY - this.height/2) { this.y = nextY; }
 };
 
 
