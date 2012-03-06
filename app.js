@@ -41,25 +41,42 @@ Game.prototype = {
     start: function() {
         this.showIntroOverlay = false;
         this.timeLeft = 60;
+        this.pointsPerSecond = 0;
         this.score = 0;
         this.gameStartTime = (new Date()).getTime();
         this.ship = new Ship({x: 200, y: 200});
+        this.pellet = new Pellet({x: 300, y: 300});
         this.enemies = [];
-        this.spawnEnemy({x: 100, y: 100}, {x: 1, y: 0.1});  // TODO: location & unit vector based on ship position
-        this.spawnEnemy({x: 300, y: 300}, {x: 1, y: 0.5});  // TODO: location & unit vector based on ship position
+        this.spawnEnemy({x: 100, y: 100}, {x: 0.7, y: -0.7});  // TODO: location & unit vector based on ship position
     },
     spawnEnemy: function(spawnLocation, direction) {
         var enemy = new Enemy(spawnLocation, direction, this.boundaries);
         this.enemies.push(enemy);
     },
-    checkForCollisions: function(ship, enemies) {
+    checkForCollisions: function() {
+        var self = this;
         // Report a collision if any enemy overlaps the ship
         // We are approximating the ship as a circle for ease of calculation
-        var collision = enemies.some(function(e) {
-            var distanceSquared = Math.pow(e.x - ship.x, 2) + Math.pow(e.y - ship.y, 2);
-            return (distanceSquared < Math.pow(ship.radius + e.getRadius(), 2));
+        var enemy_collision = this.enemies.some(function(e) {
+            var distanceSquared = Math.pow(e.x - self.ship.x, 2) + Math.pow(e.y - self.ship.y, 2);
+            return (distanceSquared < Math.pow(self.ship.radius + e.getRadius(), 2));
         });
-        collision && this._endGame();
+        enemy_collision && this._endGame();
+
+        // Check for a collision with a pellet
+        var p = this.pellet;
+        if (p) {
+            var pelletDistanceSquared = Math.pow(p.x - self.ship.x, 2) + Math.pow(p.y - self.ship.y, 2);
+            if (pelletDistanceSquared < Math.pow(self.ship.radius + p.radius, 2)) {
+                this.doPelletCollision();
+            }
+        }
+    },
+    doPelletCollision: function() {
+        var new_point = {x: (50 + Math.random()*300), y: (50 + Math.random()*300)};
+        this.pointsPerSecond += this.pellet.value;
+        this.pellet = new Pellet(new_point);
+        this.spawnEnemy(new_point, {x: 0.7, y: 0.7});   // FIXME: initial vector is wrong
     }
 };
 
@@ -104,6 +121,14 @@ Ship.prototype = {
         if (nextY > constraints.minY + this.height/2 && nextY < constraints.maxY - this.height/2) { this.y = nextY; }
     }
 };
+
+
+function Pellet(spawnLocation) {
+    this.x = spawnLocation.x;
+    this.y = spawnLocation.y;
+    this.radius = 5;
+    this.value = 10;
+}
 
 
 function Enemy(spawnLocation, direction, boundaries) {
@@ -184,6 +209,7 @@ GameView.prototype = {
         this.context.clearRect(0,0,400,400);    // Reset the canvas
         this.drawEnemies(this.game.enemies);
         this.game.ship && this.drawShip(this.game.ship);
+        this.game.pellet && this.drawPellet(this.game.pellet);
         this.drawStats();
         this.game.showIntroOverlay ? this.drawIntroOverlay() : null;
         this._getNextFrame();
@@ -228,6 +254,15 @@ GameView.prototype = {
         this.context.strokeStyle = 'white';
         this.context.lineWidth = 3;
         this.context.strokeRect(ship.x - ship.width/2, ship.y - ship.height/2, ship.width, ship.height);
+    },
+
+    drawPellet: function(pellet) {
+        this.context.strokeStyle = 'yellow';
+        this.context.lineWidth = 3;
+        this.context.beginPath();
+        this.context.arc(pellet.x - pellet.radius, pellet.y - pellet.radius, pellet.radius, 0, Math.PI*2, false);
+        this.context.stroke();
+        console.log('draw pellet:', pellet.x, pellet.y);
     },
 
     // Draw each enemy on the canvas
