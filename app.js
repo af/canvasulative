@@ -16,7 +16,7 @@ function Game(width, height) {
                         minY: 0, maxY: this.height };
 }
 Game.prototype = {
-    update: function(inputCommands) {
+    update: function(inputCommands, dt) {
         for (var i in this.enemies) {
             this.enemies[i].update();
         }
@@ -28,6 +28,7 @@ Game.prototype = {
             this.ship && this.ship.update(inputCommands, this.boundaries);
             var elapsedTimeInMs = (new Date()).getTime() - this.gameStartTime;
             this.timeLeft = 60 - elapsedTimeInMs/1000;
+            this.score += this.pointsPerSecond * dt;
             if (this.timeLeft <= 0) {
                 this._endGame();
             }
@@ -239,8 +240,10 @@ GameView.prototype = {
         this.context.textAlign = 'left';
         this.context.fillText('Time Left: ' + this.game.timeLeft.toFixed(1), textPadding, 20);
         this.context.textAlign = 'right';
-        this.context.fillText('Score: ' + this.game.score, width - textPadding, 20);
-        this.context.fillText('Top: ' + this.game.topScore, width - textPadding, 40);
+        this.context.fillText('Score: ', width - textPadding - 50, 20);
+        this.context.fillText(this.game.score.toFixed(0), width - textPadding, 20);
+        this.context.fillText('Top: ', width - textPadding - 50, 40);
+        this.context.fillText(this.game.topScore.toFixed(0), width - textPadding, 40);
         this.context.fillText('Pts/s: ' + this.game.pointsPerSecond, width - textPadding, height - textPadding);
     },
 
@@ -344,12 +347,12 @@ InputController.prototype = {
     },
     startUpdateLoop: function() {
         var ticksPerSecond = 50;
-        var updateFn = this.callUpdate.bind(this);
+        var dt = 1/ticksPerSecond;
+        var self = this;
+        var updateFn = (function() {
+            self.game.update(this._commands, dt);
+        }).bind(this);
         setInterval(updateFn, 1000/ticksPerSecond);
-    },
-    callUpdate: function() {
-        var commands = {};
-        this.game.update(this._commands);
     }
 };
 
