@@ -1,13 +1,26 @@
 // Requirements (browser support):
 // * <canvas>
 // * ES5 array methods
+//
+
+// Extremely simple high score persistence via localStorage:
+var HighScore = {
+    key: 'canvasulative_hiscore',
+    get: function() {
+        var item = localStorage.getItem(this.key) || 0;
+        return parseFloat(item);
+    },
+    set: function(score) {
+        localStorage.setItem(this.key, '' + score);
+    }
+}
 
 function Game(width, height) {
     this.width = width;
     this.height = height;
     this.timeLeft = 60;
     this.score = 0;
-    this.topScore = 0; //TODO: fetch from localstorage
+    this.topScore = HighScore.get();
     this.pointsPerSecond = 0;
     this.showIntroOverlay = true;
     this.gameStartTime = null;      // Game start time, in milliseconds
@@ -38,6 +51,11 @@ Game.prototype = {
         this.showIntroOverlay = true;
         this.timeLeft = +0;
         this.ship = null;
+
+        if (this.score > this.topScore) {
+            this.topScore = this.score;
+            HighScore.set(this.topScore);
+        }
     },
     start: function() {
         this.showIntroOverlay = false;
@@ -265,7 +283,6 @@ GameView.prototype = {
         this.context.beginPath();
         this.context.arc(pellet.x - pellet.radius, pellet.y - pellet.radius, pellet.radius, 0, Math.PI*2, false);
         this.context.stroke();
-        console.log('draw pellet:', pellet.x, pellet.y);
     },
 
     // Draw each enemy on the canvas
