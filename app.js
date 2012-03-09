@@ -1,7 +1,10 @@
 // Requirements (browser support):
 // * <canvas>
 // * ES5 array methods
-//
+
+// TODO:
+// * ship crash animation
+// * tighten controls
 
 // Extremely simple high score persistence via localStorage:
 var HighScore = {
@@ -66,9 +69,14 @@ Game.prototype = {
         this.ship = new Ship({x: 200, y: 200});
         this.pellet = new Pellet({x: 300, y: 300});
         this.enemies = [];
-        this.spawnEnemy({x: 100, y: 100}, {x: 0.7, y: -0.7});  // TODO: location & unit vector based on ship position
+        this.spawnEnemy({x: 100, y: 100});
     },
-    spawnEnemy: function(spawnLocation, direction) {
+    spawnEnemy: function(spawnLocation) {
+        // Ensure that the new enemy moves away from the ship at first:
+        var direction = {x: -(this.ship.x - spawnLocation.x), y: -(this.ship.y - spawnLocation.y)};
+        var magnitude = Math.sqrt(direction.x*direction.x + direction.y*direction.y);
+        direction.x = direction.x/magnitude;
+        direction.y = direction.y/magnitude;
         var enemy = new Enemy(spawnLocation, direction, this.boundaries);
         this.enemies.push(enemy);
     },
@@ -92,10 +100,15 @@ Game.prototype = {
         }
     },
     doPelletCollision: function() {
-        var new_point = {x: (50 + Math.random()*300), y: (50 + Math.random()*300)};
+        // Spawn a new enemy & pellet, ensuring that they don't appear right
+        // beside the ship:
+        var new_point = {x: this.ship.x, y: this.ship.y};
+        while (Math.abs(new_point.x - this.ship.x) < 50 && Math.abs(new_point.y - this.ship.y) < 50) {
+            new_point = {x: (50 + Math.random()*300), y: (50 + Math.random()*300)};
+        }
         this.pointsPerSecond += this.pellet.value;
         this.pellet = new Pellet(new_point);
-        this.spawnEnemy(new_point, {x: 0.7, y: 0.7});   // FIXME: initial vector is wrong
+        this.spawnEnemy(new_point);
     }
 };
 
@@ -106,7 +119,7 @@ function Ship(startLocation) {
     this.x = startLocation.x;           // Location of ship's center
     this.y = startLocation.y;
     this.velocity = { x: 0, y: 0};
-    this.radius = 18;                   // Approximate, used for collision detection
+    this.radius = this.width;                   // Approximate, used for collision detection
 }
 
 Ship.prototype = {
@@ -225,7 +238,7 @@ GameView.prototype = {
     },
 
     render: function() {
-        this.context.clearRect(0,0,400,400);    // Reset the canvas
+        this.context.clearRect(0,0,this.canvas.width,this.canvas.height);    // Reset the canvas
         this.drawEnemies(this.game.enemies);
         this.game.ship && this.drawShip(this.game.ship);
         this.game.pellet && this.drawPellet(this.game.pellet);
@@ -331,6 +344,7 @@ GameView.prototype = {
 
 
 
+// Converts browser input events to game-related commands
 function InputController(game) {
     this.game = game;       // Game model object
     this._commands = {};    // Queued commands to be sent to the model
@@ -372,7 +386,6 @@ InputController.prototype = {
         setInterval(updateFn, 1000/ticksPerSecond);
     }
 };
-
 
 
 window.onload = function() {
