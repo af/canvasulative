@@ -234,7 +234,7 @@ GameView.prototype = {
     setDefaults: function() {
         this.context.fillStyle = 'white';
         this.context.strokeStyle = 'white';
-        this.context.font = '1em Orbitron,monospace';
+        this.context.font = '1em Joystix,monospace';
     },
 
     render: function() {
@@ -252,14 +252,14 @@ GameView.prototype = {
         this.context.save();
         this.context.textAlign = 'center';
         // Display main title:
-        this.context.font = '2em Orbitron,monospace';
+        this.context.font = '2em Joystix,monospace';
         this.context.fillText('Canvasulative', this.canvas.width/2, this.canvas.height/2 - 30);
-        this.context.font = '1em Orbitron,monospace';
+        this.context.font = '1em Joystix,monospace';
         this.context.fillText('Press SPACE to play', this.canvas.width/2, this.canvas.height/2);
 
         // Display attribution text at the bottom:
-        this.context.font = '0.8em Orbitron,monospace';
-        this.context.fillText('This is a clone of Cumulative, by Guy Lima', this.canvas.width/2, this.canvas.height - 85);
+        this.context.font = '0.8em Joystix,monospace';
+        this.context.fillText('A clone of Cumulative, by Guy Lima:', this.canvas.width/2, this.canvas.height - 85);
         this.context.fillText('http://www.guylima.com/cumulative/', this.canvas.width/2, this.canvas.height - 70);
         this.context.restore();
     },
@@ -269,7 +269,7 @@ GameView.prototype = {
         var height = this.canvas.height;
         var textPadding = 5;
         this.context.textAlign = 'left';
-        this.context.fillText('Time Left: ' + this.game.timeLeft.toFixed(1), textPadding, 20);
+        this.context.fillText('Time: ' + this.game.timeLeft.toFixed(1), textPadding, 20);
         this.context.textAlign = 'right';
         this.context.fillText('Score: ', width - textPadding - 50, 20);
         this.context.fillText(this.game.score.toFixed(0), width - textPadding, 20);
