@@ -2,10 +2,6 @@
 // * <canvas>
 // * ES5 array methods
 
-// TODO:
-// * ship crash animation
-// * tighten controls
-
 // Extremely simple high score persistence via localStorage:
 var HighScore = {
     key: 'canvasulative_hiscore',
@@ -33,6 +29,8 @@ function Game(width, height) {
 }
 Game.prototype = {
     update: function(inputCommands, dt) {
+        // FIXME: end of game high score is sometimes different from actual score:
+        this.ship && this.ship.update(inputCommands, this.boundaries);
         for (var i in this.enemies) {
             this.enemies[i].update();
         }
@@ -40,21 +38,21 @@ Game.prototype = {
             if (inputCommands.startGame) { this.start(); }
         }
         else {
-            this.checkForCollisions(this.ship, this.enemies);
-            this.ship && this.ship.update(inputCommands, this.boundaries);
             var elapsedTimeInMs = (new Date()).getTime() - this.gameStartTime;
             this.timeLeft = 60 - elapsedTimeInMs/1000;
             this.score += this.pointsPerSecond * dt;
+            this.checkForCollisions(this.ship, this.enemies);
             if (this.timeLeft <= 0) {
                 this._endGame();
             }
         }
     },
+    crashShip: function() {
+        this.ship.crash();
+        this._endGame();
+    },
     _endGame: function() {
         this.showIntroOverlay = true;
-        this.timeLeft = +0;
-        this.ship = null;
-
         if (this.score > this.topScore) {
             this.topScore = this.score;
             HighScore.set(this.topScore);
@@ -88,7 +86,7 @@ Game.prototype = {
             var distanceSquared = Math.pow(e.x - self.ship.x, 2) + Math.pow(e.y - self.ship.y, 2);
             return (distanceSquared < Math.pow(self.ship.radius + e.getRadius(), 2));
         });
-        enemy_collision && this._endGame();
+        enemy_collision && this.crashShip();
 
         // Check for a collision with a pellet
         var p = this.pellet;
@@ -120,6 +118,7 @@ function Ship(startLocation) {
     this.y = startLocation.y;
     this.velocity = { x: 0, y: 0};
     this.radius = this.width;                   // Approximate, used for collision detection
+    this.crashedAt = null;
 }
 
 Ship.prototype = {
@@ -128,15 +127,15 @@ Ship.prototype = {
     // Handles the following commands: moveLeft, moveRight, moveUp, moveDown
     // contraints should be an object with minX, maxX, minY, and maxY properties
     update: function(commands, constraints) {
-        var MAX_SPEED = 3.5;
-        var ACCELERATION = 1;   // Amount of speed to add when given a movement command
-        var FRICTION = 1.5;     // Factor of velocity slowdown when no input is provided
+        var MAX_SPEED = 3.2;
+        var ACCELERATION = 0.8;   // Amount of speed to add when given a movement command
+        var FRICTION = 1.1;       // Factor of velocity slowdown when no input is provided
 
         // Check for movement commands and use them to calculate acceleration values:
         var accelX = (commands['moveLeft'] ? -ACCELERATION : 0) || (commands['moveRight'] ? +ACCELERATION : 0);
         var accelY = (commands['moveUp'] ? -ACCELERATION : 0) || (commands['moveDown'] ? +ACCELERATION : 0);
-        accelX ? (this.velocity.x += accelX) : (this.velocity.x /= FRICTION);
-        accelY ? (this.velocity.y += accelY) : (this.velocity.y /= FRICTION);
+        accelX && !this.crashedAt ? (this.velocity.x += accelX) : (this.velocity.x /= FRICTION);
+        accelY && !this.crashedAt ? (this.velocity.y += accelY) : (this.velocity.y /= FRICTION);
 
         // Ensure our speed does not exceed MAX_SPEED:
         var speed = Math.sqrt(this.velocity.x*this.velocity.x + this.velocity.y*this.velocity.y);
@@ -151,6 +150,10 @@ Ship.prototype = {
         var nextY = this.y + this.velocity.y;
         if (nextX > constraints.minX + this.width/2 && nextX < constraints.maxX - this.width/2) { this.x = nextX; }
         if (nextY > constraints.minY + this.height/2 && nextY < constraints.maxY - this.height/2) { this.y = nextY; }
+    },
+
+    crash: function() {
+        this.crashedAt = new Date();
     }
 };
 
@@ -285,9 +288,21 @@ GameView.prototype = {
     },
 
     drawShip: function(ship) {
-        this.context.strokeStyle = 'white';
-        this.context.lineWidth = 3;
-        this.context.strokeRect(ship.x - ship.width/2, ship.y - ship.height/2, ship.width, ship.height);
+        var timeSinceCrash = ship.crashedAt && (new Date() - ship.crashedAt);
+        if (!timeSinceCrash) {
+            this.context.strokeStyle = 'white';
+            this.context.lineWidth = 3;
+            this.context.strokeRect(ship.x - ship.width/2, ship.y - ship.height/2, ship.width, ship.height);
+        }
+        else if (timeSinceCrash < 2000) {
+            // Draw the ship's exploding debris
+            var numParticles = 20;
+            for (var i=0; i<numParticles; i += 1) {
+                var x = ship.x + Math.sin(Math.PI*i/6.5)*timeSinceCrash/40;
+                var y = ship.y + Math.cos(Math.PI*i/6.5)*timeSinceCrash/40;
+                this.context.fillRect(x, y, 2, 2);
+            }
+        }
     },
 
     drawPellet: function(pellet) {
